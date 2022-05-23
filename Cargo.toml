@@ -18,3 +18,6 @@ default = ["real_mutex", "xlib"]
 dl = []
 real_mutex = ["once_cell"]
 xlib = []
+
+[dev-dependencies]
+tracing-subscriber = "0.3.11"

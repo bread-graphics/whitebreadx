@@ -2,7 +2,7 @@
 
 use alloc::boxed::Box;
 use core::ptr::null_mut;
-use libc::{c_char, c_int, c_void};
+use libc::{c_char, c_int, c_uint, c_void};
 use once_cell::sync::Lazy;
 
 mod static_link;
@@ -90,12 +90,18 @@ pub(crate) unsafe trait XcbFfi {
         reply: *mut *mut c_void,
         error: *mut *mut GenericError,
     ) -> c_int;
+    unsafe fn xcb_request_check(&self, conn: *mut Connection, cookie: VoidCookie) -> *mut GenericError;
 }
 
 /// Opaque type for the `libxcb` connection.
 #[repr(C)]
 pub(crate) struct Connection {
     _opaque_type: [u8; 0],
+}
+
+#[repr(C)]
+pub(crate) struct VoidCookie {
+    pub(crate) sequence: c_uint,
 }
 
 /// Type for authorization info.
@@ -193,7 +199,25 @@ pub(crate) fn xcb() -> &'static dyn XcbFfi {
 pub(crate) mod flags {
     use libc::c_int;
 
-    pub(crate) const RAW: c_int = -1;
-    pub(crate) const CHECKED: c_int = 0;
-    pub(crate) const REPLY_HAS_FDS: c_int = 1;
+    pub(crate) const RAW: c_int = 2;
+    pub(crate) const CHECKED: c_int = 1;
+    pub(crate) const REPLY_HAS_FDS: c_int = 8;
+}
+
+pub(crate) mod errors {
+    use libc::c_int;
+
+    pub(crate) const XCB_CONN_ERROR: c_int = 1;
+
+    pub(crate) const XCB_CONN_CLOSED_EXT_NOTSUPPORTED: c_int = 2;
+
+    pub(crate) const XCB_CONN_CLOSED_MEM_INSUFFICIENT: c_int = 3;
+
+    pub(crate) const XCB_CONN_CLOSED_REQ_LEN_EXCEED: c_int = 4;
+
+    pub(crate) const XCB_CONN_CLOSED_PARSE_ERR: c_int = 5;
+
+    pub(crate) const XCB_CONN_CLOSED_INVALID_SCREEN: c_int = 6;
+
+    pub(crate) const XCB_CONN_CLOSED_FDPASSING_FAILED: c_int = 7;
 }

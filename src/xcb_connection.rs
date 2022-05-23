@@ -6,12 +6,12 @@ use crate::{
     sync::{mtx_lock, Mutex, OnceCell},
     xcb_ffi::{
         empty_iov, flags, xcb, AuthInfo, Connection, EventQueueKey, GenericError, GenericEvent,
-        Iovec, ProtocolRequest,
+        Iovec, ProtocolRequest, errors, VoidCookie,
     },
 };
 use alloc::vec::Vec;
 use breadx::{
-    display::{RawReply, RawRequest, DisplayBase, Display},
+    display::{RawReply, RawRequest, DisplayBase, Display, DisplayFunctionsExt},
     protocol::{xproto::{Setup, GetInputFocusRequest}, Event, ReplyFdKind},
     x11_utils::TryParse,
     Error, Result,
@@ -152,7 +152,35 @@ impl XcbDisplay {
 
         match error {
             0 => None,
-            _ => todo!(),
+            errors::XCB_CONN_ERROR => {
+                // this is an I/O error, see if we can use I/O errors
+                cfg_if::cfg_if! {
+                    if #[cfg(feature = "real_mutex")] {
+                        let io = std::io::Error::last_os_error();
+                        Some(io.into())
+                    } else {
+                        Some(Error::make_msg(
+                            "an unknown I/O error occurred"
+                        ))
+                    }
+                }
+            }
+            errors::XCB_CONN_CLOSED_EXT_NOTSUPPORTED => {
+                Some(Error::make_missing_extension("<unknown>"))
+            }
+            errors::XCB_CONN_CLOSED_MEM_INSUFFICIENT => {
+                Some(Error::make_msg("out of memory"))
+            }
+            errors::XCB_CONN_CLOSED_PARSE_ERR => {
+                Some(Error::make_parse_error(todo!()))
+            }
+            errors::XCB_CONN_CLOSED_INVALID_SCREEN => {
+                Some(Error::make_msg("invalid screen"))
+            }
+            errors::XCB_CONN_CLOSED_FDPASSING_FAILED => {
+                Some(Error::make_msg("failed to pass FD"))
+            }
+            _ => Some(Error::make_msg("unknown error")),
         }
     }
 
@@ -206,17 +234,24 @@ impl XcbDisplay {
     }
 
     fn synchronize_impl(&self) -> Result<()> {
+        // send a checked no-op request
         let mut this = self;
+        let cookie = this.no_operation()?;
+        let seq = cookie.sequence();
+        let seq = VoidCookie {
+            sequence: seq as _,
+        };
 
-        // similar to the breadx synchronize
-        let req = GetInputFocusRequest {};
-        let req = RawRequest::from_request_reply(req);
-        let sequence = this.send_request_raw(req)?;
+        let err = unsafe {
+            xcb().xcb_request_check(self.as_ptr(), seq)
+        };
+        
+        if err.is_null() {
+            return Ok(());
+        }
 
-        // wait for it
-        this.flush()?;
-        let _ = this.wait_for_reply_raw(sequence)?;
-        Ok(())
+        let err = unsafe { self.wrap_error(err) };
+        Err(err)
     }
 
     /// Flush to the server.

@@ -2,7 +2,7 @@
 
 use super::{
     AuthInfo, Connection, EventQueueKey, Extension, GenericError, GenericEvent, Iovec,
-    ProtocolRequest, QueryExtensionReply, Setup, XcbFfi,
+    ProtocolRequest, QueryExtensionReply, Setup, XcbFfi, VoidCookie,
 };
 use libc::{c_char, c_int, c_void};
 
@@ -144,10 +144,14 @@ unsafe impl XcbFfi for StaticFfi {
     ) -> *mut GenericEvent {
         xcb_wait_for_special_event(conn, special_event)
     }
+
+    unsafe fn xcb_request_check(&self, conn: *mut Connection, cookie: VoidCookie) -> *mut GenericError {
+        xcb_request_check(conn, cookie)
+    }
 }
 
 // actual import
-#[link(name = "xcb", kind = "static")]
+#[link(name = "xcb")]
 extern "C" {
     fn xcb_connect(display: *const c_char, screenp: *mut c_int) -> *mut Connection;
     fn xcb_connect_to_display_with_auth_info(
@@ -209,4 +213,5 @@ extern "C" {
         reply: *mut *mut c_void,
         error: *mut *mut GenericError,
     ) -> c_int;
+    fn xcb_request_check(conn: *mut Connection, cookie: VoidCookie) -> *mut GenericError;
 }
