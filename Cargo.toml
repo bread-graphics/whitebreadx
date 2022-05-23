@@ -1,0 +1,20 @@
+[package]
+name = "whitebreadx"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+breadx = { git = "https://github.com/notgull/breadx" }
+cfg-if = "1"
+cstr_core = { version = "0.2", feature = ["alloc"] }
+hashbrown = { version = "0.12", default-features = false }
+libc = { version = "0.2", default-features = false }
+once_cell = { version = "1", optional = true }
+rustc-hash = {version = "1", default-features = false }
+spin = "0.9"
+
+[features]
+default = ["real_mutex", "xlib"]
+dl = []
+real_mutex = ["once_cell"]
+xlib = []
