@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-breadx = { git = "https://github.com/notgull/breadx" }
+breadx = { path = "../breadx/breadx" } 
 cfg-if = "1"
 cstr_core = { version = "0.2", feature = ["alloc"] }
 hashbrown = { version = "0.12", default-features = false }

@@ -1,7 +1,10 @@
 // MIT/Apache2 License
 
 use alloc::vec::Vec;
-use core::{mem, ops::{Deref, DerefMut}, ptr::NonNull};
+use core::{
+    ops::{Deref, DerefMut},
+    ptr::NonNull,
+};
 
 /// An allocation, made using the `libc` `alloc` function.
 pub(crate) struct CBox<T: ?Sized> {
@@ -10,9 +13,9 @@ pub(crate) struct CBox<T: ?Sized> {
 
 impl<T: ?Sized> CBox<T> {
     /// Creates a new `CBox` from a pointer.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// The pointer must be valid, not null and
     /// made from `alloc`.
     pub(crate) unsafe fn new(ptr: *mut T) -> Self {
@@ -34,13 +37,6 @@ impl<T: ?Sized> CBox<T> {
     /// Returns the inner data as a mutable reference.
     pub(crate) fn as_mut(&mut self) -> &mut T {
         unsafe { self.ptr.as_mut() }
-    }
-
-    /// Returns the pointer and consume this box in the process.
-    pub(crate) fn into_ptr(self) -> *mut T {
-        let ptr = self.as_ptr();
-        mem::forget(self);
-        ptr
     }
 }
 
