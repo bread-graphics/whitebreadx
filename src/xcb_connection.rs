@@ -19,7 +19,7 @@ use breadx::{
 use core::{
     mem::{ManuallyDrop, MaybeUninit},
     ptr::{null, null_mut, slice_from_raw_parts_mut, NonNull},
-    slice,
+    slice, alloc::Layout,
 };
 use cstr_core::CStr;
 use libc::{c_int, c_void};
@@ -172,7 +172,19 @@ impl XcbDisplay {
             errors::XCB_CONN_CLOSED_EXT_NOTSUPPORTED => {
                 Some(Error::make_missing_extension("<unknown>"))
             }
-            errors::XCB_CONN_CLOSED_MEM_INSUFFICIENT => Some(Error::make_msg("out of memory")),
+            errors::XCB_CONN_CLOSED_MEM_INSUFFICIENT => {
+                // standard Rust behavior when encountering an OOM
+                // is to abort the program
+                // we need a layout here for the error message
+                // we don't know the exact one, but we can take an
+                // educated guess
+                let layout = Layout::from_size_align_unchecked(
+                    32,
+                    4
+                );
+
+                alloc::alloc::handle_alloc_error(layout)
+            }
             errors::XCB_CONN_CLOSED_REQ_LEN_EXCEED => {
                 Some(Error::make_msg("request length exceeded"))
             }
@@ -297,8 +309,7 @@ impl XcbDisplay {
 
         let event = if event.is_null() {
             return Err(self
-                .take_error()
-                .unwrap_or_else(|| Error::make_msg("Failed to wait for event")));
+                .take_maybe_error());
         } else {
             event
         };
