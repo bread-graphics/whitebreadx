@@ -1,8 +1,6 @@
 // MIT/Apache2 License
 
-use crate::{
-    sync::{rwl_read, rwl_write, RwLock},
-};
+use crate::sync::{rwl_read, rwl_write, RwLock};
 use breadx::{
     display::{Display, DisplayFunctionsExt},
     protocol::{ExtInfoProvider, ExtensionInformation},
@@ -30,7 +28,7 @@ impl ExtensionManager {
         let guard = rwl_read(&self.entries);
 
         if let Some(entry) = guard.get(&name) {
-            return Ok(entry.as_ref().map(|entry| entry.major_opcode))
+            return Ok(entry.as_ref().map(|entry| entry.major_opcode));
         }
 
         // slow path: we don't have it, so we need to query it
@@ -40,7 +38,7 @@ impl ExtensionManager {
         // someone else may have queried it while we were waiting
         // check if so
         if let Some(entry) = guard.get(&name) {
-            return Ok(entry.as_ref().map(|entry| entry.major_opcode))
+            return Ok(entry.as_ref().map(|entry| entry.major_opcode));
         }
 
         let res = display.query_extension_immediate(name)?;

@@ -4,19 +4,24 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-breadx = { path = "../breadx/breadx" } 
+breadx = { path = "../breadx/breadx", default-features = false } 
 cfg-if = "1"
-cstr_core = { version = "0.2", feature = ["alloc"] }
+cstr_core = { version = "0.2" }
 hashbrown = { version = "0.12", default-features = false }
 libc = { version = "0.2", default-features = false }
+libloading = { version = "0.7.3", optional = true }
 once_cell = { version = "1", optional = true }
+parking_lot = { version = "0.12.0", optional = true }
 rustc-hash = {version = "1", default-features = false }
-spin = "0.9"
+spin = { version = "0.9", features = ["lazy"] }
 
 [features]
-default = ["real_mutex", "xlib"]
-dl = []
-real_mutex = ["once_cell"]
+default = ["real_mutex", "std", "xlib"]
+dl = ["libloading", "std"]
+pl = ["real_mutex", "parking_lot", "breadx/pl", "once_cell/parking_lot"]
+real_mutex = ["once_cell", "std"]
+std = ["breadx/std"]
+to_socket = ["std"]
 xlib = []
 
 [dev-dependencies]

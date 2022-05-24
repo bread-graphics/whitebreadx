@@ -1,11 +1,14 @@
 // MIT/Apache2 License
 
+use crate::sync::Lazy;
 use alloc::boxed::Box;
 use core::ptr::null_mut;
 use libc::{c_char, c_int, c_uint, c_void};
-use once_cell::sync::Lazy;
 
+#[cfg(not(feature = "dl"))]
 mod static_link;
+#[cfg(feature = "dl")]
+mod dynamic_link;
 
 /// A trait for FFI with `libxcb`, using either static or dynamic linking.
 #[allow(clippy::missing_safety_doc)]
@@ -28,37 +31,10 @@ pub(crate) unsafe trait XcbFfi {
     unsafe fn xcb_generate_id(&self, conn: *mut Connection) -> u32;
     unsafe fn xcb_flush(&self, conn: *mut Connection) -> c_int;
     unsafe fn xcb_get_maximum_request_length(&self, conn: *mut Connection) -> u32;
-    unsafe fn xcb_get_extension_data(
-        &self,
-        conn: *mut Connection,
-        ext: *mut Extension,
-    ) -> *const QueryExtensionReply;
 
     // events
     unsafe fn xcb_wait_for_event(&self, conn: *mut Connection) -> *mut GenericEvent;
     unsafe fn xcb_poll_for_event(&self, conn: *mut Connection) -> *mut GenericEvent;
-    unsafe fn xcb_wait_for_special_event(
-        &self,
-        conn: *mut Connection,
-        special_event: *mut EventQueueKey,
-    ) -> *mut GenericEvent;
-    unsafe fn xcb_poll_for_special_event(
-        &self,
-        conn: *mut Connection,
-        special_event: *mut EventQueueKey,
-    ) -> *mut GenericEvent;
-    unsafe fn xcb_register_for_special_xge(
-        &self,
-        conn: *mut Connection,
-        extension: *mut Extension,
-        eid: u32,
-        stamp: *mut u32,
-    ) -> *mut EventQueueKey;
-    unsafe fn xcb_unregister_for_special_event(
-        &self,
-        conn: *mut Connection,
-        special_event: *mut EventQueueKey,
-    );
 
     // requests api
     unsafe fn xcb_send_request64(
@@ -90,7 +66,11 @@ pub(crate) unsafe trait XcbFfi {
         reply: *mut *mut c_void,
         error: *mut *mut GenericError,
     ) -> c_int;
-    unsafe fn xcb_request_check(&self, conn: *mut Connection, cookie: VoidCookie) -> *mut GenericError;
+    unsafe fn xcb_request_check(
+        &self,
+        conn: *mut Connection,
+        cookie: VoidCookie,
+    ) -> *mut GenericError;
 }
 
 /// Opaque type for the `libxcb` connection.
@@ -146,6 +126,7 @@ pub(crate) struct QueryExtensionReply {
 
 #[cfg(unix)]
 pub(crate) use libc::iovec as Iovec;
+
 #[cfg(not(unix))]
 #[repr(C)]
 pub(crate) struct Iovec {
@@ -181,19 +162,24 @@ pub(crate) struct GenericEvent {
     _opaque_type: [u8; 0],
 }
 
+#[cfg(not(feature = "dl"))]
+type Impl = static_link::StaticFfi;
+#[cfg(feature = "dl")]
+type Impl = dynamic_link::DynamicFfi;
+
 /// Global object used to make `libxcb` calls.
-static XCB: Lazy<Box<dyn XcbFfi + Send + Sync + 'static>> = Lazy::new(|| {
+static XCB: Lazy<Impl> = Lazy::new(|| {
     cfg_if::cfg_if! {
         if #[cfg(feature = "dl")] {
-            todo!()
+            dynamic_link::DynamicFfi::load()
         } else {
-            Box::new(static_link::StaticFfi)
+            static_link::StaticFfi
         }
     }
 });
 
-pub(crate) fn xcb() -> &'static dyn XcbFfi {
-    &**XCB
+pub(crate) fn xcb() -> &'static Impl {
+    &*XCB
 }
 
 pub(crate) mod flags {

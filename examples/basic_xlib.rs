@@ -2,17 +2,20 @@
 
 //! Demonstration of the basic capabilities of `breadx`.
 
+#[cfg(feature = "xlib")]
 use breadx::{
     prelude::*,
     protocol::{xproto, Event},
 };
-use whitebreadx::XcbDisplay;
+#[cfg(feature = "xlib")]
+use whitebreadx::{XlibDisplay, ThreadUnsafe};
 
+#[cfg(feature = "xlib")]
 fn main() -> breadx::Result<()> {
     tracing_subscriber::fmt::init();
 
     // Create a new display connection.
-    let mut connection = XcbDisplay::connect(None)?;
+    let mut connection = XlibDisplay::<ThreadUnsafe>::connect(None)?;
 
     // Events that our window receives.
     let events = xproto::EventMask::EXPOSURE | xproto::EventMask::BUTTON_PRESS;
@@ -191,4 +194,9 @@ fn main() -> breadx::Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(not(feature = "xlib"))]
+fn main() {
+    println!("This example requires the `xlib` feature");
 }

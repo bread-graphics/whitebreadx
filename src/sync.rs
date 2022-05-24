@@ -10,7 +10,8 @@ cfg_if::cfg_if! {
             RwLock,
             RwLockReadGuard,
             RwLockWriteGuard,
-            OnceCell
+            Once as OnceCell,
+            lazy::Lazy,
         };
 
         pub(crate) fn mtx_lock<T>(mtx: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -24,7 +25,16 @@ cfg_if::cfg_if! {
         pub(crate) fn rwl_write<T>(rwl: &RwLock<T>) -> RwLockWriteGuard<'_, T> {
             rwl.write()
         }
-    } else {
+
+        pub(crate) fn call_once<T>(
+            once: &OnceCell<T>,
+            f: impl FnOnce() -> T,
+        ) -> &T {
+            once.call_once(move || {
+                f()
+            })
+        }
+    } else if #[cfg(all(feature = "real_mutex", not(feature = "pl")))]{
         pub(crate) use std::sync::{
             Mutex,
             MutexGuard,
@@ -32,7 +42,7 @@ cfg_if::cfg_if! {
             RwLockReadGuard,
             RwLockWriteGuard,
         };
-        pub(crate) use once_cell::sync::OnceCell;
+        pub(crate) use once_cell::sync::{OnceCell, Lazy};
 
         pub(crate) fn mtx_lock<T>(mtx: &Mutex<T>) -> MutexGuard<'_, T> {
             match mtx.lock() {
@@ -54,5 +64,44 @@ cfg_if::cfg_if! {
                 Err(poison) => poison.into_inner(),
             }
         }
+
+        pub(crate) fn call_once<T>(
+            once: &OnceCell<T>,
+            f: impl FnOnce() -> T,
+        ) -> &T {
+            once.get_or_init(move || {
+                f()
+            })
+        }
+    } else {
+         pub(crate) use parking_lot::{
+            Mutex,
+            MutexGuard,
+            RwLock,
+            RwLockReadGuard,
+            RwLockWriteGuard,
+        };
+        pub(crate) use once_cell::sync::{OnceCell, Lazy};
+
+        pub(crate) fn mtx_lock<T>(mtx: &Mutex<T>) -> MutexGuard<'_, T> {
+            mtx.lock()
+        }
+
+        pub(crate) fn rwl_read<T>(rwl: &RwLock<T>) -> RwLockReadGuard<'_, T> {
+            rwl.read()
+        }
+
+        pub(crate) fn rwl_write<T>(rwl: &RwLock<T>) -> RwLockWriteGuard<'_, T> {
+            rwl.write()
+        }
+
+        pub(crate) fn call_once<T>(
+            once: &OnceCell<T>,
+            f: impl FnOnce() -> T,
+        ) -> &T {
+            once.get_or_init(move || {
+                f()
+            })
+        }       
     }
 }

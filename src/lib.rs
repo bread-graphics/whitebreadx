@@ -32,16 +32,17 @@
 //!   linking instead. This also imports the standard library.
 //! - `pl` - Uses `parking_lot` mutexes instead of `std` mutexes throughout
 //!   the program. Implies `real_mutex`.
-//! - `to_socket` - On Unix, enables the [`XcbConnection::connect_to_socket`]
+//! - `to_socket` - On Unix, enables the [`XcbDisplay::connect_to_socket`]
 //!   function, which allows one to safely wrap around any [`AsRawFd`] type.
-//!   Also imports the standard library.
+//!   Also imports the standard library and adds `AsRawFd` impls to
+//!   `XcbDisplay` and `XlibDisplay`.
 
 #![no_std]
 #![allow(unused_unsafe)]
 
 extern crate alloc;
 
-#[cfg(any(feature = "real_mutex", feature = "dl"))]
+#[cfg(feature = "std")]
 extern crate std;
 
 #[path = "alloc.rs"]
@@ -50,5 +51,13 @@ pub(crate) mod extension_manager;
 pub(crate) mod sync;
 pub(crate) mod xcb_ffi;
 
+#[cfg(feature = "xlib")]
+pub(crate) mod xlib_ffi;
+
 mod xcb_connection;
 pub use xcb_connection::XcbDisplay;
+
+#[cfg(feature = "xlib")]
+mod xlib;
+#[cfg(feature = "xlib")]
+pub use xlib::{ThreadSafe, ThreadSafety, ThreadUnsafe, XlibDisplay};

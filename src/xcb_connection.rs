@@ -3,16 +3,16 @@
 use crate::{
     cbox::CBox,
     extension_manager::ExtensionManager,
-    sync::{mtx_lock, Mutex, OnceCell},
+    sync::{call_once, mtx_lock, Mutex, OnceCell},
     xcb_ffi::{
-        empty_iov, flags, xcb, AuthInfo, Connection, EventQueueKey, GenericError, GenericEvent,
-        Iovec, ProtocolRequest, errors, VoidCookie,
+        empty_iov, errors, flags, xcb, AuthInfo, Connection, GenericError, GenericEvent, Iovec,
+        ProtocolRequest, VoidCookie, XcbFfi,
     },
 };
 use alloc::vec::Vec;
 use breadx::{
-    display::{RawReply, RawRequest, DisplayBase, Display, DisplayFunctionsExt},
-    protocol::{xproto::{Setup, GetInputFocusRequest}, Event, ReplyFdKind},
+    display::{Display, DisplayBase, DisplayFunctionsExt, RawReply, RawRequest},
+    protocol::{xproto::Setup, Event, ReplyFdKind},
     x11_utils::TryParse,
     Error, Result,
 };
@@ -23,6 +23,9 @@ use core::{
 };
 use cstr_core::CStr;
 use libc::{c_int, c_void};
+
+#[cfg(all(unix, feature = "to_socket"))]
+use std::os::unix::io::{AsRawFd, RawFd};
 
 /// A [`Display`] that acts as a wrapper around a `libxcb`
 /// `xcb_connection_t`.
@@ -116,16 +119,12 @@ impl XcbDisplay {
     }
 
     /// Wrap around an existing ptr.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// `ptr` must be a valid, non-null pointer to a `xcb_connection_t`. In addition
     /// `disconnect` should only be `true` if we logically own the connection.
-    pub unsafe fn from_ptr(
-        ptr: *mut c_void,
-        disconnect: bool,
-        screen: usize,
-    ) -> XcbDisplay {
+    pub unsafe fn from_ptr(ptr: *mut c_void, disconnect: bool, screen: usize) -> XcbDisplay {
         let conn = NonNull::new_unchecked(ptr.cast());
         XcbDisplay {
             connection: conn,
@@ -139,6 +138,11 @@ impl XcbDisplay {
 
     fn as_ptr(&self) -> *mut Connection {
         self.connection.as_ptr()
+    }
+
+    /// Get a pointer to the interior `libxcb` connection.
+    pub fn as_raw_connection(&self) -> *mut c_void {
+        self.as_ptr().cast()
     }
 
     /// Get the file descriptor for this FD.
@@ -155,7 +159,7 @@ impl XcbDisplay {
             errors::XCB_CONN_ERROR => {
                 // this is an I/O error, see if we can use I/O errors
                 cfg_if::cfg_if! {
-                    if #[cfg(feature = "real_mutex")] {
+                    if #[cfg(feature = "std")] {
                         let io = std::io::Error::last_os_error();
                         Some(io.into())
                     } else {
@@ -168,18 +172,15 @@ impl XcbDisplay {
             errors::XCB_CONN_CLOSED_EXT_NOTSUPPORTED => {
                 Some(Error::make_missing_extension("<unknown>"))
             }
-            errors::XCB_CONN_CLOSED_MEM_INSUFFICIENT => {
-                Some(Error::make_msg("out of memory"))
+            errors::XCB_CONN_CLOSED_MEM_INSUFFICIENT => Some(Error::make_msg("out of memory")),
+            errors::XCB_CONN_CLOSED_REQ_LEN_EXCEED => {
+                Some(Error::make_msg("request length exceeded"))
             }
             errors::XCB_CONN_CLOSED_PARSE_ERR => {
-                Some(Error::make_parse_error(todo!()))
+                Some(Error::make_msg("failed to parse server reply"))
             }
-            errors::XCB_CONN_CLOSED_INVALID_SCREEN => {
-                Some(Error::make_msg("invalid screen"))
-            }
-            errors::XCB_CONN_CLOSED_FDPASSING_FAILED => {
-                Some(Error::make_msg("failed to pass FD"))
-            }
+            errors::XCB_CONN_CLOSED_INVALID_SCREEN => Some(Error::make_msg("invalid screen")),
+            errors::XCB_CONN_CLOSED_FDPASSING_FAILED => Some(Error::make_msg("failed to pass FD")),
             _ => Some(Error::make_msg("unknown error")),
         }
     }
@@ -199,7 +200,7 @@ impl XcbDisplay {
 
     /// Get the `Setup` associated with this type.
     pub fn get_setup(&self) -> &Setup {
-        self.setup.get_or_init(|| {
+        call_once(&self.setup, || {
             // since xcb keeps its pointer types 1:1 equivalent with
             // the byte streams, we can just parse the setup as a
             // byte stream.
@@ -213,7 +214,9 @@ impl XcbDisplay {
             // now, parse it
             let setup_slice = unsafe { slice::from_raw_parts(setup_ptr, length) };
 
-            Setup::try_parse(setup_slice).expect("xcb had invalid setup struct").0
+            Setup::try_parse(setup_slice)
+                .expect("xcb had invalid setup struct")
+                .0
         })
     }
 
@@ -238,14 +241,10 @@ impl XcbDisplay {
         let mut this = self;
         let cookie = this.no_operation()?;
         let seq = cookie.sequence();
-        let seq = VoidCookie {
-            sequence: seq as _,
-        };
+        let seq = VoidCookie { sequence: seq as _ };
 
-        let err = unsafe {
-            xcb().xcb_request_check(self.as_ptr(), seq)
-        };
-        
+        let err = unsafe { xcb().xcb_request_check(self.as_ptr(), seq) };
+
         if err.is_null() {
             return Ok(());
         }
@@ -289,8 +288,7 @@ impl XcbDisplay {
         let event = unsafe { CBox::new(event) };
 
         // parse the event
-        Event::parse(&event, &self.extension_manager)
-            .map_err(Error::make_parse_error)
+        Event::parse(&event, &self.extension_manager).map_err(Error::make_parse_error)
     }
 
     /// Wait for an event.
@@ -326,49 +324,18 @@ impl XcbDisplay {
         unsafe { self.parse_event(event) }.map(Some)
     }
 
-    /// Wait for a special event.
-    fn wait_for_special_event_impl(&self, evkey: &SpecialEvent) -> Result<Event> {
-        let event = unsafe { xcb().xcb_wait_for_special_event(self.as_ptr(), evkey.0.as_ptr()) };
-
-        let event = if event.is_null() {
-            return Err(self
-                .take_error()
-                .unwrap_or_else(|| Error::make_msg("Failed to wait for event")));
-        } else {
-            event
-        };
-
-        unsafe { self.parse_event(event) }
-    }
-
-    /// Poll for a special event.
-    fn poll_for_special_event_impl(&self, evkey: &SpecialEvent) -> Result<Option<Event>> {
-        let event = unsafe { xcb().xcb_poll_for_special_event(self.as_ptr(), evkey.0.as_ptr()) };
-
-        let event = if event.is_null() {
-            // tell if the null corresponds to an error
-            if let Some(err) = self.take_error() {
-                return Err(err);
-            } else {
-                return Ok(None);
-            }
-        } else {
-            event
-        };
-
-        unsafe { self.parse_event(event) }.map(Some)
-    }
-
     /// Send a request to the server.
     fn send_request_impl(&self, mut request: RawRequest) -> Result<u64> {
         // format the request
         request.compute_length(self.maximum_request_length_impl() as usize)?;
         if let Some(ext) = request.extension() {
             let mut this = self;
-            request.set_extension_opcode(match self.extension_manager.extension_code(&mut this, ext)? {
-                Some(code) => code,
-                None => return Err(Error::make_missing_extension(ext)),
-            });
+            request.set_extension_opcode(
+                match self.extension_manager.extension_code(&mut this, ext)? {
+                    Some(code) => code,
+                    None => return Err(Error::make_missing_extension(ext)),
+                },
+            );
         }
 
         let variant = request.variant();
@@ -387,7 +354,7 @@ impl XcbDisplay {
         // determine protocol request
         let proto_request = ProtocolRequest {
             count: iov.len(),
-            extension: null_mut(), 
+            extension: null_mut(),
             opcode: 0,
             isvoid: matches!(variant, ReplyFdKind::NoReply) as u8,
         };
@@ -407,7 +374,16 @@ impl XcbDisplay {
             // we have fds
             let mut fds = ManuallyDrop::new(
                 fds.into_iter()
-                    .map(|fd| fd.into_raw_fd())
+                    .map(|fd| {
+                        cfg_if::cfg_if! {
+                            if #[cfg(all(unix, feature = "std"))] {
+                                fd.into_raw_fd()
+                            } else {
+                                let _ = fd;
+                                unreachable!()
+                            }
+                        }
+                    })
                     .collect::<Vec<_>>(),
             );
             unsafe {
@@ -520,6 +496,34 @@ impl XcbDisplay {
                 panic!("reply and error are both non-null")
             }
         }
+    }
+}
+
+#[cfg(all(unix, feature = "to_socket"))]
+impl XcbDisplay {
+    /// Connect to an existing socket.
+    /// 
+    /// # Safety
+    /// 
+    /// `socket` must be a valid I/O socket.
+    pub unsafe fn connect_to_socket(
+        socket: impl AsRawFd,
+        auth_name: &[u8],
+        auth_data: &[u8],
+        screen: usize,
+    ) -> Result<Self> {
+        // SAFETY: due to AsRawFd, we know socket is a valid socket
+        // or do we? take another look once i/o safety lands
+        unsafe {
+            Self::connect_to_fd(socket.as_raw_fd(), auth_name, auth_data, screen)
+        }
+    }
+}
+
+#[cfg(all(unix, feature = "to_socket"))]
+impl AsRawFd for XcbDisplay {
+    fn as_raw_fd(&self) -> RawFd {
+        self.as_ptr() as RawFd
     }
 }
 
@@ -642,8 +646,6 @@ unsafe fn wrap_reply(reply: *mut c_void) -> CBox<[u8]> {
     unsafe { CBox::new(reply) }
 }
 
-pub(crate) struct SpecialEvent(CBox<EventQueueKey>);
-
 pub struct XcbReply {
     reply: CBox<[u8]>,
     fds: Vec<c_int>,
@@ -658,9 +660,10 @@ impl From<XcbReply> for RawReply {
             .into_iter()
             .map(|fd| {
                 cfg_if::cfg_if! {
-                    if #[cfg(unix)] {
+                    if #[cfg(all(unix, feature = "std"))] {
                         breadx::Fd::new(fd)
                     } else {
+                        let _ = fd;
                         unreachable!()
                     }
                 }

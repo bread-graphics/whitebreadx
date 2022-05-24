@@ -1,8 +1,10 @@
 // MIT/Apache2 License
 
+#![cfg(not(feature = "dl"))]
+
 use super::{
     AuthInfo, Connection, EventQueueKey, Extension, GenericError, GenericEvent, Iovec,
-    ProtocolRequest, QueryExtensionReply, Setup, XcbFfi, VoidCookie,
+    ProtocolRequest, QueryExtensionReply, Setup, VoidCookie, XcbFfi,
 };
 use libc::{c_char, c_int, c_void};
 
@@ -42,14 +44,6 @@ unsafe impl XcbFfi for StaticFfi {
         xcb_generate_id(conn)
     }
 
-    unsafe fn xcb_get_extension_data(
-        &self,
-        conn: *mut Connection,
-        ext: *mut Extension,
-    ) -> *const QueryExtensionReply {
-        xcb_get_extension_data(conn, ext)
-    }
-
     unsafe fn xcb_get_file_descriptor(&self, conn: *mut Connection) -> c_int {
         xcb_get_file_descriptor(conn)
     }
@@ -76,24 +70,6 @@ unsafe impl XcbFfi for StaticFfi {
         xcb_poll_for_reply64(conn, seq, reply, error)
     }
 
-    unsafe fn xcb_poll_for_special_event(
-        &self,
-        conn: *mut Connection,
-        special_event: *mut EventQueueKey,
-    ) -> *mut GenericEvent {
-        xcb_poll_for_special_event(conn, special_event)
-    }
-
-    unsafe fn xcb_register_for_special_xge(
-        &self,
-        conn: *mut Connection,
-        extension: *mut Extension,
-        eid: u32,
-        stamp: *mut u32,
-    ) -> *mut EventQueueKey {
-        xcb_register_for_special_xge(conn, extension, eid, stamp)
-    }
-
     unsafe fn xcb_send_request64(
         &self,
         conn: *mut Connection,
@@ -116,14 +92,6 @@ unsafe impl XcbFfi for StaticFfi {
         xcb_send_request_with_fds64(conn, flags, iov, request, num_fds, fds)
     }
 
-    unsafe fn xcb_unregister_for_special_event(
-        &self,
-        conn: *mut Connection,
-        special_event: *mut EventQueueKey,
-    ) {
-        xcb_unregister_for_special_event(conn, special_event)
-    }
-
     unsafe fn xcb_wait_for_event(&self, conn: *mut Connection) -> *mut GenericEvent {
         xcb_wait_for_event(conn)
     }
@@ -137,15 +105,11 @@ unsafe impl XcbFfi for StaticFfi {
         xcb_wait_for_reply64(conn, seq, error)
     }
 
-    unsafe fn xcb_wait_for_special_event(
+    unsafe fn xcb_request_check(
         &self,
         conn: *mut Connection,
-        special_event: *mut EventQueueKey,
-    ) -> *mut GenericEvent {
-        xcb_wait_for_special_event(conn, special_event)
-    }
-
-    unsafe fn xcb_request_check(&self, conn: *mut Connection, cookie: VoidCookie) -> *mut GenericError {
+        cookie: VoidCookie,
+    ) -> *mut GenericError {
         xcb_request_check(conn, cookie)
     }
 }
