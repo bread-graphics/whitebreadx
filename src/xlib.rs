@@ -26,6 +26,7 @@ use std::os::unix::io::{AsRawFd, RawFd};
 pub struct XlibDisplay<ThreadSafety> {
     xcb: XcbDisplay,
     display: NonNull<XDisplay>,
+    disconnect: bool,
     _phantom: PhantomData<ThreadSafety>,
 }
 
@@ -83,26 +84,46 @@ impl<TS: ThreadSafety> XlibDisplay<TS> {
         let conn = unsafe { xlib().XOpenDisplay(display_name) };
 
         // check for null
-        let conn = match NonNull::new(conn) {
-            Some(conn) => conn,
-            None => return Err(Error::make_msg("failed to connect to X server")),
-        };
+        if conn.is_null() {
+            return Err(Error::make_msg("failed to connect to X server"));
+        }
+        
+        Ok(unsafe {
+            Self::from_ptr(
+                conn.cast(),
+                true
+            )
+        })
+    }
+
+    /// Create a new `XlibDisplay` from an existing pointer to an
+    /// X11 `Display`.
+    /// 
+    /// # Safety
+    /// 
+    /// The pointer must be a valid, non-null pointer to an X11 `Display`.
+    pub unsafe fn from_ptr(
+        ptr: *mut c_void,
+        disconnect: bool,
+    ) -> Self {
+        let conn: *mut XDisplay = ptr.cast();
 
         // get the default screen, needed for XcbDisplay innards
-        let screen = unsafe { xlib().XDefaultScreen(conn.as_ptr()) };
+        let screen = unsafe { xlib().XDefaultScreen(conn) };
 
         // get the internal XCB connection
-        let xcb_conn = unsafe { xlib().XGetXCBConnection(conn.as_ptr()) };
+        let xcb_conn = unsafe { xlib().XGetXCBConnection(conn) };
 
         // create the XcbDisplay
         let xcb = unsafe { XcbDisplay::from_ptr(xcb_conn.cast(), false, screen as usize) };
 
         // we're live
-        Ok(Self {
+        Self {
             xcb,
-            display: conn,
+            display: NonNull::new_unchecked(conn),
+            disconnect,
             _phantom: PhantomData,
-        })
+        }
     }
 }
 
@@ -223,8 +244,10 @@ impl<TS> Display for &XlibDisplay<TS> {
 
 impl<TS> Drop for XlibDisplay<TS> {
     fn drop(&mut self) {
-        unsafe {
-            xlib().XCloseDisplay(self.display.as_ptr());
+        if self.disconnect {
+            unsafe {
+                xlib().XCloseDisplay(self.display.as_ptr());
+            }
         }
     }
 }
