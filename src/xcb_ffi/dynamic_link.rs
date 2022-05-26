@@ -1,6 +1,9 @@
 // MIT/Apache2 License
 
-use super::{XcbFfi, Connection, Iovec, ProtocolRequest, GenericError, GenericEvent, VoidCookie, AuthInfo, Setup};
+use super::{
+    AuthInfo, Connection, GenericError, GenericEvent, Iovec, ProtocolRequest, Setup, VoidCookie,
+    XcbFfi,
+};
 use libc::{c_char, c_int, c_void};
 use libloading::{Library, Symbol};
 
@@ -13,15 +16,11 @@ impl DynamicFfi {
     pub(crate) fn load() -> Self {
         let path = "libxcb.so.1";
 
-        let library = unsafe { Library::new(path) }
-            .expect("Unable to open libxcb dynamically");
-        
+        let library = unsafe { Library::new(path) }.expect("Unable to open libxcb dynamically");
+
         let funcs = unsafe { Funcs::load(&library) };
 
-        Self {
-            library,
-            funcs,
-        }
+        Self { library, funcs }
     }
 }
 
@@ -71,7 +70,7 @@ macro_rules! define_funcs {
 define_funcs! {
     xcb_connect(display: *const c_char, screenp: *mut c_int) -> *mut Connection,
     xcb_connect_to_display_with_auth_info(
-        display: *const c_char, 
+        display: *const c_char,
         auth_info: *mut AuthInfo,
         screenp: *mut c_int
     ) -> *mut Connection,

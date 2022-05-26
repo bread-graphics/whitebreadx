@@ -8,7 +8,7 @@ use breadx::{
     protocol::{xproto, Event},
 };
 #[cfg(feature = "xlib")]
-use whitebreadx::{XlibDisplay, ThreadUnsafe};
+use whitebreadx::{ThreadUnsafe, XlibDisplay};
 
 #[cfg(feature = "xlib")]
 fn main() -> breadx::Result<()> {

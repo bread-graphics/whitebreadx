@@ -13,8 +13,10 @@ pub(crate) struct DynamicLink {
 
 impl DynamicLink {
     pub(crate) fn load() -> Self {
-        let xlib = unsafe { Library::new("libX11.so.6") }.expect("Unable to open libX11 dynamically");
-        let xlib_xcb = unsafe { Library::new("libX11-xcb.so.1") }.expect("Unable to open libX11-xcb dynamically");
+        let xlib =
+            unsafe { Library::new("libX11.so.6") }.expect("Unable to open libX11 dynamically");
+        let xlib_xcb = unsafe { Library::new("libX11-xcb.so.1") }
+            .expect("Unable to open libX11-xcb dynamically");
 
         let funcs = unsafe { Funcs::load(&xlib, &xlib_xcb) };
 
@@ -58,10 +60,7 @@ struct Funcs {
 }
 
 impl Funcs {
-    unsafe fn load(
-        xlib: &Library,
-        xlib_xcb: &Library
-    ) -> Self {
+    unsafe fn load(xlib: &Library, xlib_xcb: &Library) -> Self {
         Self {
             XOpenDisplay: {
                 let symbol = concat!("XOpenDisplay\0").as_bytes();
@@ -71,21 +70,24 @@ impl Funcs {
             },
             XCloseDisplay: {
                 let symbol = concat!("XCloseDisplay\0").as_bytes();
-                *(xlib
-                    .get(symbol)
-                    .expect(concat!("Could not find symbol: ", stringify!(XCloseDisplay))))
+                *(xlib.get(symbol).expect(concat!(
+                    "Could not find symbol: ",
+                    stringify!(XCloseDisplay)
+                )))
             },
             XDefaultScreen: {
                 let symbol = concat!("XDefaultScreen\0").as_bytes();
-                *(xlib
-                    .get(symbol)
-                    .expect(concat!("Could not find symbol: ", stringify!(XDefaultScreen))))
+                *(xlib.get(symbol).expect(concat!(
+                    "Could not find symbol: ",
+                    stringify!(XDefaultScreen)
+                )))
             },
             XGetXCBConnection: {
                 let symbol = concat!("XGetXCBConnection\0").as_bytes();
-                *(xlib_xcb
-                    .get(symbol)
-                    .expect(concat!("Could not find symbol: ", stringify!(XGetXCBConnection))))
+                *(xlib_xcb.get(symbol).expect(concat!(
+                    "Could not find symbol: ",
+                    stringify!(XGetXCBConnection)
+                )))
             },
             XInitThreads: {
                 let symbol = concat!("XInitThreads\0").as_bytes();

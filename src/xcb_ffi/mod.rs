@@ -5,10 +5,10 @@ use alloc::boxed::Box;
 use core::ptr::null_mut;
 use libc::{c_char, c_int, c_uint, c_void};
 
-#[cfg(not(feature = "dl"))]
-mod static_link;
 #[cfg(feature = "dl")]
 mod dynamic_link;
+#[cfg(not(feature = "dl"))]
+mod static_link;
 
 /// A trait for FFI with `libxcb`, using either static or dynamic linking.
 #[allow(clippy::missing_safety_doc)]

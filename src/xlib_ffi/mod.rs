@@ -6,10 +6,10 @@ use crate::{sync::Lazy, xcb_ffi::Connection};
 use alloc::boxed::Box;
 use libc::{c_char, c_int};
 
-#[cfg(not(feature = "dl"))]
-mod static_link;
 #[cfg(feature = "dl")]
 mod dynamic_link;
+#[cfg(not(feature = "dl"))]
+mod static_link;
 
 /// FFI with `libX11`, using either static or dynamic linking.
 ///

@@ -17,9 +17,10 @@ use breadx::{
     Error, Result,
 };
 use core::{
+    alloc::Layout,
     mem::{ManuallyDrop, MaybeUninit},
     ptr::{null, null_mut, slice_from_raw_parts_mut, NonNull},
-    slice, alloc::Layout,
+    slice,
 };
 use cstr_core::CStr;
 use libc::{c_int, c_void};
@@ -178,10 +179,7 @@ impl XcbDisplay {
                 // we need a layout here for the error message
                 // we don't know the exact one, but we can take an
                 // educated guess
-                let layout = Layout::from_size_align_unchecked(
-                    32,
-                    4
-                );
+                let layout = Layout::from_size_align_unchecked(32, 4);
 
                 alloc::alloc::handle_alloc_error(layout)
             }
@@ -308,8 +306,7 @@ impl XcbDisplay {
         let event = unsafe { xcb().xcb_wait_for_event(self.as_ptr()) };
 
         let event = if event.is_null() {
-            return Err(self
-                .take_maybe_error());
+            return Err(self.take_maybe_error());
         } else {
             event
         };
@@ -338,16 +335,18 @@ impl XcbDisplay {
     /// Send a request to the server.
     fn send_request_impl(&self, mut request: RawRequest) -> Result<u64> {
         // format the request
-        request.compute_length(self.maximum_request_length_impl() as usize)?;
-        if let Some(ext) = request.extension() {
-            let mut this = self;
-            request.set_extension_opcode(
+        let ext_opcode = request
+            .extension()
+            .map(|ext| {
+                let mut this = self;
                 match self.extension_manager.extension_code(&mut this, ext)? {
-                    Some(code) => code,
-                    None => return Err(Error::make_missing_extension(ext)),
-                },
-            );
-        }
+                    Some(code) => Ok(code),
+                    None => Err(Error::make_missing_extension(ext)),
+                }
+            })
+            .transpose()?;
+
+        request.format(ext_opcode, self.maximum_request_length_impl() as usize)?;
 
         let variant = request.variant();
         let (mut buf, fds) = request.into_raw_parts();
@@ -513,9 +512,9 @@ impl XcbDisplay {
 #[cfg(all(unix, feature = "to_socket"))]
 impl XcbDisplay {
     /// Connect to an existing socket.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// `socket` must be a valid I/O socket.
     pub unsafe fn connect_to_socket(
         socket: impl AsRawFd,
@@ -525,9 +524,7 @@ impl XcbDisplay {
     ) -> Result<Self> {
         // SAFETY: due to AsRawFd, we know socket is a valid socket
         // or do we? take another look once i/o safety lands
-        unsafe {
-            Self::connect_to_fd(socket.as_raw_fd(), auth_name, auth_data, screen)
-        }
+        unsafe { Self::connect_to_fd(socket.as_raw_fd(), auth_name, auth_data, screen) }
     }
 }
 
@@ -575,7 +572,7 @@ impl DisplayBase for &XcbDisplay {
 }
 
 impl Display for XcbDisplay {
-    fn send_request_raw(&mut self, req: RawRequest) -> Result<u64> {
+    fn send_request_raw(&mut self, req: RawRequest<'_, '_>) -> Result<u64> {
         self.send_request_impl(req)
     }
 
@@ -617,7 +614,7 @@ impl Display for &XcbDisplay {
         Ok(self.maximum_request_length_impl() as usize)
     }
 
-    fn send_request_raw(&mut self, req: RawRequest) -> Result<u64> {
+    fn send_request_raw(&mut self, req: RawRequest<'_, '_>) -> Result<u64> {
         self.send_request_impl(req)
     }
 

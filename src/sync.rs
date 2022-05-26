@@ -102,6 +102,6 @@ cfg_if::cfg_if! {
             once.get_or_init(move || {
                 f()
             })
-        }       
+        }
     }
 }

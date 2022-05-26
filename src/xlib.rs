@@ -87,25 +87,17 @@ impl<TS: ThreadSafety> XlibDisplay<TS> {
         if conn.is_null() {
             return Err(Error::make_msg("failed to connect to X server"));
         }
-        
-        Ok(unsafe {
-            Self::from_ptr(
-                conn.cast(),
-                true
-            )
-        })
+
+        Ok(unsafe { Self::from_ptr(conn.cast(), true) })
     }
 
     /// Create a new `XlibDisplay` from an existing pointer to an
     /// X11 `Display`.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// The pointer must be a valid, non-null pointer to an X11 `Display`.
-    pub unsafe fn from_ptr(
-        ptr: *mut c_void,
-        disconnect: bool,
-    ) -> Self {
+    pub unsafe fn from_ptr(ptr: *mut c_void, disconnect: bool) -> Self {
         let conn: *mut XDisplay = ptr.cast();
 
         // get the default screen, needed for XcbDisplay innards
@@ -195,7 +187,7 @@ impl<TS> Display for XlibDisplay<TS> {
         self.xcb.maximum_request_length()
     }
 
-    fn send_request_raw(&mut self, req: RawRequest) -> Result<u64> {
+    fn send_request_raw(&mut self, req: RawRequest<'_, '_>) -> Result<u64> {
         self.xcb.send_request_raw(req)
     }
 
@@ -225,7 +217,7 @@ impl<TS> Display for &XlibDisplay<TS> {
         (&self.xcb).maximum_request_length()
     }
 
-    fn send_request_raw(&mut self, req: RawRequest) -> Result<u64> {
+    fn send_request_raw(&mut self, req: RawRequest<'_, '_>) -> Result<u64> {
         (&self.xcb).send_request_raw(req)
     }
 
