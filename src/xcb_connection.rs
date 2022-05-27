@@ -18,7 +18,7 @@ use breadx::{
 };
 use core::{
     alloc::Layout,
-    mem::{ManuallyDrop, MaybeUninit},
+    mem::{self, MaybeUninit},
     ptr::{null, null_mut, slice_from_raw_parts_mut, NonNull},
     slice,
 };
@@ -349,58 +349,47 @@ impl XcbDisplay {
         request.format(ext_opcode, self.maximum_request_length_impl() as usize)?;
 
         let variant = request.variant();
-        let (mut buf, fds) = request.into_raw_parts();
+        let reply_has_fds = matches!(variant, ReplyFdKind::ReplyWithFDs);
+        let (buf, fds) = request.mut_parts();
 
-        // build the buffers
-        let mut iov = [
-            empty_iov(),
-            empty_iov(),
-            Iovec {
-                iov_base: buf.as_mut_ptr().cast(),
-                iov_len: buf.len(),
-            },
-        ];
+        let iov = (&mut buf[1..]).as_mut_ptr() as *mut Iovec;
 
         // determine protocol request
         let proto_request = ProtocolRequest {
-            count: iov.len(),
+            count: buf.len() - 1,
             extension: null_mut(),
             opcode: 0,
             isvoid: matches!(variant, ReplyFdKind::NoReply) as u8,
         };
 
         let mut sr_flags = flags::CHECKED | flags::RAW;
-        let reply_has_fds = matches!(variant, ReplyFdKind::ReplyWithFDs);
         if reply_has_fds {
             sr_flags |= flags::REPLY_HAS_FDS;
         }
 
         let seq = if fds.is_empty() {
             // no fds
-            unsafe {
-                xcb().xcb_send_request64(self.as_ptr(), sr_flags, iov.as_mut_ptr(), &proto_request)
-            }
+            unsafe { xcb().xcb_send_request64(self.as_ptr(), sr_flags, iov, &proto_request) }
         } else {
             // we have fds
-            let mut fds = ManuallyDrop::new(
-                fds.into_iter()
-                    .map(|fd| {
-                        cfg_if::cfg_if! {
-                            if #[cfg(all(unix, feature = "std"))] {
-                                fd.into_raw_fd()
-                            } else {
-                                let _ = fd;
-                                unreachable!()
-                            }
+            let mut fds = mem::take(fds)
+                .into_iter()
+                .map(|fd| {
+                    cfg_if::cfg_if! {
+                        if #[cfg(all(unix, feature = "std"))] {
+                            fd.into_raw_fd()
+                        } else {
+                            let _ = fd;
+                            unreachable!()
                         }
-                    })
-                    .collect::<Vec<_>>(),
-            );
+                    }
+                })
+                .collect::<Vec<_>>();
             unsafe {
                 xcb().xcb_send_request_with_fds64(
                     self.as_ptr(),
                     sr_flags,
-                    iov.as_mut_ptr(),
+                    iov,
                     &proto_request,
                     fds.len() as i32,
                     fds.as_mut_ptr(),
@@ -419,7 +408,7 @@ impl XcbDisplay {
     #[cfg(unix)]
     unsafe fn extract_fds(&self, reply: &[u8], seq: u64) -> Vec<c_int> {
         // if the sequenc number is not in our set, return
-        if mtx_lock(&self.has_fds).remove(&seq) {
+        if !mtx_lock(&self.has_fds).remove(&seq) {
             return Vec::new();
         }
 
