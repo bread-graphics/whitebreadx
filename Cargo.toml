@@ -1,18 +1,24 @@
 [package]
 name = "whitebreadx"
 version = "0.1.0"
-edition = "2021"
+edition = "2018"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/bread-graphics/whitebreadx"
+homepage = "https://github.com/bread-graphics/whitebreadx#readme"
+description = "A breadx library that provides a wrapper for libxcb and libX11."
+readme = "README.md"
+authors = ["notgull <jtnunley01@gmail.com>"]
 
 [dependencies]
-breadx = { path = "../breadx/breadx", default-features = false } 
+breadx = { version = "3", default-features = false } 
 cfg-if = "1"
 cstr_core = { version = "0.2" }
-hashbrown = { version = "0.12", default-features = false }
+hashbrown = { version = "0.11", default-features = false }
 libc = { version = "0.2", default-features = false }
 libloading = { version = "0.7.3", optional = true }
 once_cell = { version = "1", optional = true }
 parking_lot = { version = "0.12.0", optional = true }
-rustc-hash = {version = "1", default-features = false }
+rustc-hash = { version = "1", default-features = false }
 spin = { version = "0.9", features = ["lazy"] }
 
 [features]
@@ -26,3 +32,6 @@ xlib = []
 
 [dev-dependencies]
 tracing-subscriber = "0.3.11"
+
+[package.metadata.docs.rs]
+all-features = true

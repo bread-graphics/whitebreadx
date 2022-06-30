@@ -3,7 +3,6 @@
 #![cfg(feature = "xlib")]
 
 use crate::{sync::Lazy, xcb_ffi::Connection};
-use alloc::boxed::Box;
 use libc::{c_char, c_int};
 
 #[cfg(feature = "dl")]

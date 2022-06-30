@@ -6,6 +6,7 @@ use crate::{
     XcbDisplay,
 };
 use __private::Sealed;
+use alloc::sync::Arc;
 use breadx::{
     display::{Display, DisplayBase, RawReply, RawRequest},
     protocol::{xproto::Setup, Event},
@@ -139,7 +140,7 @@ impl<TS> AsRawFd for XlibDisplay<TS> {
 }
 
 impl<TS> DisplayBase for XlibDisplay<TS> {
-    fn setup(&self) -> &Setup {
+    fn setup(&self) -> &Arc<Setup> {
         self.xcb.setup()
     }
 
@@ -157,7 +158,7 @@ impl<TS> DisplayBase for XlibDisplay<TS> {
 }
 
 impl<TS> DisplayBase for &XlibDisplay<TS> {
-    fn setup(&self) -> &Setup {
+    fn setup(&self) -> &Arc<Setup> {
         self.xcb.setup()
     }
 
@@ -202,6 +203,10 @@ impl<TS> Display for XlibDisplay<TS> {
     fn wait_for_reply_raw(&mut self, seq: u64) -> Result<RawReply> {
         self.xcb.wait_for_reply_raw(seq)
     }
+
+    fn check_for_error(&mut self, seq: u64) -> Result<()> {
+        self.xcb.check_for_error(seq)
+    }
 }
 
 impl<TS> Display for &XlibDisplay<TS> {
@@ -231,6 +236,10 @@ impl<TS> Display for &XlibDisplay<TS> {
 
     fn wait_for_reply_raw(&mut self, seq: u64) -> Result<RawReply> {
         (&self.xcb).wait_for_reply_raw(seq)
+    }
+
+    fn check_for_error(&mut self, seq: u64) -> Result<()> {
+        (&self.xcb).check_for_error(seq)
     }
 }
 

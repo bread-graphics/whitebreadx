@@ -6,8 +6,8 @@ use libc::{c_char, c_int};
 use libloading::Library;
 
 pub(crate) struct DynamicLink {
-    xlib: Library,
-    xlib_xcb: Library,
+    _xlib: Library,
+    _xlib_xcb: Library,
     funcs: Funcs,
 }
 
@@ -21,8 +21,8 @@ impl DynamicLink {
         let funcs = unsafe { Funcs::load(&xlib, &xlib_xcb) };
 
         Self {
-            xlib,
-            xlib_xcb,
+            _xlib: xlib,
+            _xlib_xcb: xlib_xcb,
             funcs,
         }
     }

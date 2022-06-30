@@ -14,6 +14,14 @@ and `XlibDisplay`. Both of these objects are wrappers around native
 In addition, raw pointers to the underlying transport mechanism can be
 accessed, allowing usage with external code.
 
+## External Library Version Support
+
+The minimum supported versions of `libxcb` and `libX11` necessary for 
+this library are unknown. This library has been tested to work with 
+`libxcb` version 1.14 and `libX11` version 2:1.7. However, the `libX11` 
+version must be after the paradigm shift where it began using `libxcb` 
+as an internal transport. There are no plans to support legacy `libX11`.
+
 ## License
 
 MIT/Apache2

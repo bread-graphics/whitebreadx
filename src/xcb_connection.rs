@@ -5,11 +5,11 @@ use crate::{
     extension_manager::ExtensionManager,
     sync::{call_once, mtx_lock, Mutex, OnceCell},
     xcb_ffi::{
-        empty_iov, errors, flags, xcb, AuthInfo, Connection, GenericError, GenericEvent, Iovec,
+        errors, flags, xcb, AuthInfo, Connection, GenericError, GenericEvent, Iovec,
         ProtocolRequest, VoidCookie, XcbFfi,
     },
 };
-use alloc::vec::Vec;
+use alloc::{sync::Arc, vec::Vec};
 use breadx::{
     display::{Display, DisplayBase, DisplayFunctionsExt, RawReply, RawRequest},
     protocol::{xproto::Setup, Event, ReplyFdKind},
@@ -44,7 +44,7 @@ pub struct XcbDisplay {
     /// Whether we should call `xcb_disconnect` on drop.
     disconnect: bool,
     /// The converted setup associated with this connection.
-    setup: OnceCell<Setup>,
+    setup: OnceCell<Arc<Setup>>,
     /// Extension info manager.
     extension_manager: ExtensionManager,
     /// The set of all replies that will contain some number of FDs.
@@ -209,7 +209,7 @@ impl XcbDisplay {
     }
 
     /// Get the `Setup` associated with this type.
-    pub fn get_setup(&self) -> &Setup {
+    pub fn get_setup(&self) -> &Arc<Setup> {
         call_once(&self.setup, || {
             // since xcb keeps its pointer types 1:1 equivalent with
             // the byte streams, we can just parse the setup as a
@@ -226,7 +226,7 @@ impl XcbDisplay {
 
             Setup::try_parse(setup_slice)
                 .expect("xcb had invalid setup struct")
-                .0
+                .0.into()
         })
     }
 
@@ -250,17 +250,9 @@ impl XcbDisplay {
         // send a checked no-op request
         let mut this = self;
         let cookie = this.no_operation()?;
-        let seq = cookie.sequence();
-        let seq = VoidCookie { sequence: seq as _ };
+        let seq = cookie.sequence(); 
 
-        let err = unsafe { xcb().xcb_request_check(self.as_ptr(), seq) };
-
-        if err.is_null() {
-            return Ok(());
-        }
-
-        let err = unsafe { self.wrap_error(err) };
-        Err(err)
+        self.check_for_error_impl(seq)
     }
 
     /// Flush to the server.
@@ -315,7 +307,7 @@ impl XcbDisplay {
     }
 
     /// Poll for an event.
-    pub fn poll_for_event_impl(&self) -> Result<Option<Event>> {
+    fn poll_for_event_impl(&self) -> Result<Option<Event>> {
         let event = unsafe { xcb().xcb_poll_for_event(self.as_ptr()) };
 
         let event = if event.is_null() {
@@ -496,6 +488,18 @@ impl XcbDisplay {
             }
         }
     }
+
+    fn check_for_error_impl(&self, seq: u64) -> Result<()> {
+        let seq = VoidCookie { sequence: seq as _ };
+        let err = unsafe { xcb().xcb_request_check(self.as_ptr(), seq) };
+
+        if err.is_null() {
+            return Ok(());
+        }
+
+        let err = unsafe { self.wrap_error(err) };
+        Err(err)
+    }
 }
 
 #[cfg(all(unix, feature = "to_socket"))]
@@ -525,7 +529,7 @@ impl AsRawFd for XcbDisplay {
 }
 
 impl DisplayBase for XcbDisplay {
-    fn setup(&self) -> &Setup {
+    fn setup(&self) -> &Arc<Setup> {
         self.get_setup()
     }
 
@@ -543,7 +547,7 @@ impl DisplayBase for XcbDisplay {
 }
 
 impl DisplayBase for &XcbDisplay {
-    fn setup(&self) -> &Setup {
+    fn setup(&self) -> &Arc<Setup> {
         self.get_setup()
     }
 
@@ -588,6 +592,10 @@ impl Display for XcbDisplay {
     fn wait_for_reply_raw(&mut self, seq: u64) -> Result<RawReply> {
         self.wait_for_reply_impl(seq).map(Into::into)
     }
+
+    fn check_for_error(&mut self, seq: u64) -> Result<()> {
+        self.check_for_error_impl(seq)
+    }
 }
 
 impl Display for &XcbDisplay {
@@ -617,6 +625,10 @@ impl Display for &XcbDisplay {
 
     fn wait_for_reply_raw(&mut self, seq: u64) -> Result<RawReply> {
         self.wait_for_reply_impl(seq).map(Into::into)
+    }
+
+    fn check_for_error(&mut self, seq: u64) -> Result<()> {
+        self.check_for_error_impl(seq)
     }
 }
 

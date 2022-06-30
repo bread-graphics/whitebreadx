@@ -5,10 +5,10 @@ use super::{
     XcbFfi,
 };
 use libc::{c_char, c_int, c_void};
-use libloading::{Library, Symbol};
+use libloading::Library;
 
 pub(crate) struct DynamicFfi {
-    library: Library,
+    _library: Library,
     funcs: Funcs,
 }
 
@@ -20,7 +20,7 @@ impl DynamicFfi {
 
         let funcs = unsafe { Funcs::load(&library) };
 
-        Self { library, funcs }
+        Self { _library: library, funcs }
     }
 }
 
@@ -39,7 +39,7 @@ macro_rules! define_funcs {
                 Self {
                     $(
                     $name: {
-                        let symbol = concat!(stringify!(name), "\0").as_bytes();
+                        let symbol = concat!(stringify!($name), "\0").as_bytes();
                         *(library
                             .get(symbol)
                             .expect(concat!("Could not find symbol: ", stringify!(name))))

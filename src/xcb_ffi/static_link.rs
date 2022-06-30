@@ -3,8 +3,8 @@
 #![cfg(not(feature = "dl"))]
 
 use super::{
-    AuthInfo, Connection, EventQueueKey, Extension, GenericError, GenericEvent, Iovec,
-    ProtocolRequest, QueryExtensionReply, Setup, VoidCookie, XcbFfi,
+    AuthInfo, Connection, GenericError, GenericEvent, Iovec,
+    ProtocolRequest, Setup, VoidCookie, XcbFfi,
 };
 use libc::{c_char, c_int, c_void};
 
@@ -131,27 +131,8 @@ extern "C" {
     fn xcb_generate_id(conn: *mut Connection) -> u32;
     fn xcb_flush(conn: *mut Connection) -> c_int;
     fn xcb_get_maximum_request_length(conn: *mut Connection) -> u32;
-    fn xcb_get_extension_data(
-        conn: *mut Connection,
-        ext: *mut Extension,
-    ) -> *const QueryExtensionReply;
     fn xcb_wait_for_event(conn: *mut Connection) -> *mut GenericEvent;
     fn xcb_poll_for_event(conn: *mut Connection) -> *mut GenericEvent;
-    fn xcb_wait_for_special_event(
-        conn: *mut Connection,
-        special_event: *mut EventQueueKey,
-    ) -> *mut GenericEvent;
-    fn xcb_poll_for_special_event(
-        conn: *mut Connection,
-        special_event: *mut EventQueueKey,
-    ) -> *mut GenericEvent;
-    fn xcb_register_for_special_xge(
-        conn: *mut Connection,
-        extension: *mut Extension,
-        eid: u32,
-        stamp: *mut u32,
-    ) -> *mut EventQueueKey;
-    fn xcb_unregister_for_special_event(conn: *mut Connection, special_event: *mut EventQueueKey);
     fn xcb_send_request64(
         conn: *mut Connection,
         flags: c_int,

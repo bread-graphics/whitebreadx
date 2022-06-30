@@ -1,8 +1,6 @@
 // MIT/Apache2 License
 
 use crate::sync::Lazy;
-use alloc::boxed::Box;
-use core::ptr::null_mut;
 use libc::{c_char, c_int, c_uint, c_void};
 
 #[cfg(feature = "dl")]
@@ -99,29 +97,10 @@ pub(crate) struct Setup {
     _opaque_type: [u8; 0],
 }
 
-/// XCB-side event repr.
-#[repr(C)] // todo
-pub(crate) struct EventQueueKey {
-    _opaque_type: [u8; 0],
-}
-
 /// Extension type.
 #[repr(C)]
 pub(crate) struct Extension {
     _opaque_type: [u8; 0],
-}
-
-/// Query extension reply.
-#[repr(C)]
-pub(crate) struct QueryExtensionReply {
-    response_type: u8,
-    pad0: u8,
-    sequence: u16,
-    length: u32,
-    pub(crate) present: u8,
-    pub(crate) major_opcode: u8,
-    pub(crate) first_event: u8,
-    pub(crate) first_error: u8,
 }
 
 #[cfg(unix)]
@@ -132,13 +111,6 @@ pub(crate) use libc::iovec as Iovec;
 pub(crate) struct Iovec {
     pub(crate) iov_base: *mut c_void,
     pub(crate) iov_len: c_int,
-}
-
-pub(crate) fn empty_iov() -> Iovec {
-    Iovec {
-        iov_base: null_mut(),
-        iov_len: 0,
-    }
 }
 
 /// Protocol request.
