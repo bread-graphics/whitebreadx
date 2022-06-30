@@ -20,7 +20,10 @@ impl DynamicFfi {
 
         let funcs = unsafe { Funcs::load(&library) };
 
-        Self { _library: library, funcs }
+        Self {
+            _library: library,
+            funcs,
+        }
     }
 }
 

@@ -3,8 +3,8 @@
 #![cfg(not(feature = "dl"))]
 
 use super::{
-    AuthInfo, Connection, GenericError, GenericEvent, Iovec,
-    ProtocolRequest, Setup, VoidCookie, XcbFfi,
+    AuthInfo, Connection, GenericError, GenericEvent, Iovec, ProtocolRequest, Setup, VoidCookie,
+    XcbFfi,
 };
 use libc::{c_char, c_int, c_void};
 

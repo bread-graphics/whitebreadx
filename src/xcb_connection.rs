@@ -226,7 +226,8 @@ impl XcbDisplay {
 
             Setup::try_parse(setup_slice)
                 .expect("xcb had invalid setup struct")
-                .0.into()
+                .0
+                .into()
         })
     }
 
@@ -250,7 +251,7 @@ impl XcbDisplay {
         // send a checked no-op request
         let mut this = self;
         let cookie = this.no_operation()?;
-        let seq = cookie.sequence(); 
+        let seq = cookie.sequence();
 
         self.check_for_error_impl(seq)
     }
