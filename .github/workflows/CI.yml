@@ -73,7 +73,7 @@ jobs:
 
       # install libxcb and libX11
       - name: Install libxcb and libX11
-        run: sudo apt-get install libxcb1-dev libx11-dev
+        run: sudo apt-get install libxcb1-dev libx11-dev libx11-xcb-dev
 
       # run tests for all crates
       - name: Default Features Test
