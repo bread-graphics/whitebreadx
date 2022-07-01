@@ -24,4 +24,8 @@ as an internal transport. There are no plans to support legacy `libX11`.
 
 ## License
 
-MIT/Apache2
+This package is distributed under the Boost Software License Version 1.0.
+Consult the [LICENSE](./LICENSE) file or consult the [web mirror] for
+more information.
+
+[web mirror]: https://www.boost.org/LICENSE_1_0.txt

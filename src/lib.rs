@@ -1,4 +1,8 @@
-// MIT/Apache2 License
+//               Copyright John Nunley, 2022.
+// Distributed under the Boost Software License, Version 1.0.
+//       (See accompanying file LICENSE or copy at
+//         https://www.boost.org/LICENSE_1_0.txt)
+
 
 //! Implementations of [`breadx`] connections over types from
 //! `libxcb` and `libX11`.
@@ -17,14 +21,22 @@
 //! they can be converted into pointers to their underlying representations,
 //! allowing them to be used in existing `libxcb`/`libX11` libraries.
 //!
-//! TODO: supported libxcb/libX11 versions
+//! ## External Library Version Support
+//! 
+//! The minimum supported versions of `libxcb` and `libX11` necessary for 
+//! this library are unknown. This library has been tested to work with 
+//! `libxcb` version 1.14 and `libX11` version 2:1.7. However, the `libX11` 
+//! version must be after the paradigm shift where it began using `libxcb` 
+//! as an internal transport. There are no plans to support legacy `libX11`.
 //!
 //! ## Features
 //!
 //! - `real_mutex` (enabled by default) - This feature imports `std` so
 //!   that all synchronous data can be locked behind standard library
 //!   mutex types. With this feature disabled, the standard library is
-//!   not used, but spinlocks are used to secure data instead.
+//!   not used, but spinlocks are used to secure data instead. Think
+//!   carefully before disabling this feature, since spinlocks are
+//!   [considered harmful].
 //! - `xlib` (enabled by default) - Enables use of the `libX11`-based
 //!   [`Display`]s.
 //! - `dl` - By default, this library statically links to `libxcb` and.
@@ -36,6 +48,8 @@
 //!   function, which allows one to safely wrap around any [`AsRawFd`] type.
 //!   Also imports the standard library and adds `AsRawFd` impls to
 //!   `XcbDisplay` and `XlibDisplay`.
+//! 
+//! [considered harmful]: https://matklad.github.io/2020/01/02/spinlocks-considered-harmful.html
 
 #![no_std]
 #![allow(unused_unsafe)]

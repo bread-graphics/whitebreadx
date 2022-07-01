@@ -1,4 +1,7 @@
-// MIT/Apache2 License
+//               Copyright John Nunley, 2022.
+// Distributed under the Boost Software License, Version 1.0.
+//       (See accompanying file LICENSE or copy at
+//         https://www.boost.org/LICENSE_1_0.txt)
 
 use crate::{
     cbox::CBox,
@@ -343,6 +346,7 @@ impl XcbDisplay {
 
         let variant = request.variant();
         let reply_has_fds = matches!(variant, ReplyFdKind::ReplyWithFDs);
+        let check_reply = request.discard_mode().is_none();
         let (buf, fds) = request.mut_parts();
 
         let iov = (&mut buf[1..]).as_mut_ptr() as *mut Iovec;
@@ -355,7 +359,10 @@ impl XcbDisplay {
             isvoid: matches!(variant, ReplyFdKind::NoReply) as u8,
         };
 
-        let mut sr_flags = flags::CHECKED | flags::RAW;
+        let mut sr_flags = flags::RAW;
+        if check_reply {
+            sr_flags |= flags::CHECKED;
+        }
         if reply_has_fds {
             sr_flags |= flags::REPLY_HAS_FDS;
         }
@@ -388,7 +395,14 @@ impl XcbDisplay {
                     fds.as_mut_ptr(),
                 )
             }
+
+            // fds are manually closed by libxcb
         };
+
+        // check for an error
+        if seq == 0 {
+            return Err(self.take_maybe_error());
+        }
 
         // setup sequence number
         if reply_has_fds {

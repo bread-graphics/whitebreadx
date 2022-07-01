@@ -1,6 +1,10 @@
-// MIT/Apache2 License
+//               Copyright John Nunley, 2022.
+// Distributed under the Boost Software License, Version 1.0.
+//       (See accompanying file LICENSE or copy at
+//         https://www.boost.org/LICENSE_1_0.txt)
 
-//! Demonstration of the basic capabilities of `breadx`.
+//! Demonstration of the basic capabilities of `breadx`, but modified
+//! to use the `whitebreadx` `libxcb` connection.
 
 use breadx::{
     prelude::*,
@@ -12,6 +16,9 @@ fn main() -> breadx::Result<()> {
     tracing_subscriber::fmt::init();
 
     // Create a new display connection.
+    // 
+    // Note that this is the only real difference, and that it just
+    // amounts to changing `BasicDisplay` to `XcbDisplay`.
     let mut connection = XcbDisplay::connect(None)?;
 
     // Events that our window receives.

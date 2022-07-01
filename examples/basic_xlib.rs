@@ -1,6 +1,10 @@
-// MIT/Apache2 License
+//               Copyright John Nunley, 2022.
+// Distributed under the Boost Software License, Version 1.0.
+//       (See accompanying file LICENSE or copy at
+//         https://www.boost.org/LICENSE_1_0.txt)
 
-//! Demonstration of the basic capabilities of `breadx`.
+//! Demonstration of the basic capabilities of `breadx`, modified to
+//! accomodate `whitebreadx`'s Xlib display.
 
 #[cfg(feature = "xlib")]
 use breadx::{
@@ -15,6 +19,9 @@ fn main() -> breadx::Result<()> {
     tracing_subscriber::fmt::init();
 
     // Create a new display connection.
+    // 
+    // We create a thread-unsafe Xlib display here, since it is never
+    // shared across multiple threads.
     let mut connection = XlibDisplay::<ThreadUnsafe>::connect(None)?;
 
     // Events that our window receives.
