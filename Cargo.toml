@@ -7,7 +7,7 @@
 name = "whitebreadx"
 version = "0.1.0"
 edition = "2018"
-license = "MIT OR Apache-2.0"
+license = "BSL-1.0"
 repository = "https://github.com/bread-graphics/whitebreadx"
 homepage = "https://github.com/bread-graphics/whitebreadx#readme"
 description = "A breadx library that provides a wrapper for libxcb and libX11."
