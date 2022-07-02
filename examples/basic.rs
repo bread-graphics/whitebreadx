@@ -16,7 +16,7 @@ fn main() -> breadx::Result<()> {
     tracing_subscriber::fmt::init();
 
     // Create a new display connection.
-    // 
+    //
     // Note that this is the only real difference, and that it just
     // amounts to changing `BasicDisplay` to `XcbDisplay`.
     let mut connection = XcbDisplay::connect(None)?;

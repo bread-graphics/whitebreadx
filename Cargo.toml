@@ -15,7 +15,7 @@ readme = "README.md"
 authors = ["notgull <jtnunley01@gmail.com>"]
 
 [dependencies]
-breadx = { path = "3.1", default-features = false } 
+breadx = { version = "3.1", default-features = false } 
 cfg-if = "1"
 cstr_core = { version = "0.2" }
 hashbrown = { version = "0.11", default-features = false }

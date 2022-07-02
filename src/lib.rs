@@ -3,7 +3,6 @@
 //       (See accompanying file LICENSE or copy at
 //         https://www.boost.org/LICENSE_1_0.txt)
 
-
 //! Implementations of [`breadx`] connections over types from
 //! `libxcb` and `libX11`.
 //!
@@ -22,11 +21,11 @@
 //! allowing them to be used in existing `libxcb`/`libX11` libraries.
 //!
 //! ## External Library Version Support
-//! 
-//! The minimum supported versions of `libxcb` and `libX11` necessary for 
-//! this library are unknown. This library has been tested to work with 
-//! `libxcb` version 1.14 and `libX11` version 2:1.7. However, the `libX11` 
-//! version must be after the paradigm shift where it began using `libxcb` 
+//!
+//! The minimum supported versions of `libxcb` and `libX11` necessary for
+//! this library are unknown. This library has been tested to work with
+//! `libxcb` version 1.14 and `libX11` version 2:1.7. However, the `libX11`
+//! version must be after the paradigm shift where it began using `libxcb`
 //! as an internal transport. There are no plans to support legacy `libX11`.
 //!
 //! ## Features
@@ -48,7 +47,7 @@
 //!   function, which allows one to safely wrap around any [`AsRawFd`] type.
 //!   Also imports the standard library and adds `AsRawFd` impls to
 //!   `XcbDisplay` and `XlibDisplay`.
-//! 
+//!
 //! [considered harmful]: https://matklad.github.io/2020/01/02/spinlocks-considered-harmful.html
 
 #![no_std]

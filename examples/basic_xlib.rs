@@ -19,7 +19,7 @@ fn main() -> breadx::Result<()> {
     tracing_subscriber::fmt::init();
 
     // Create a new display connection.
-    // 
+    //
     // We create a thread-unsafe Xlib display here, since it is never
     // shared across multiple threads.
     let mut connection = XlibDisplay::<ThreadUnsafe>::connect(None)?;
