@@ -1,5 +1,16 @@
 # whitebreadx
 
+[![crates.io][crates-badge]][crates-url]
+[![Documentation][docs-badge]][docs-url]
+[![Build Status][build-badge]][build-url]
+
+[crates-badge]: https://img.shields.io/crates/v/whitebreadx
+[crates-url]: https://crates.io/crates/whitebreadx
+[docs-badge]: https://img.shields.io/docsrs/whitebreadx
+[docs-url]: https://docs.rs/whitebreadx
+[build-badge]: https://img.shields.io/github/workflow/status/bread-graphics/whitebreadx/CI
+[build-url]: https://github.com/bread-graphics/whitebreadx/actions?query=workflow%3ACI+branch%3Amaster
+
 Wrappers around `libxcb` and `libX11` that implement `breadx` traits.
 
 `breadx` comes with many advantages over existing libraries, but 
